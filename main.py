@@ -1,5 +1,23 @@
 import os 
 import time
+import socket
+
+
+
+
+def check_net_connection(host = "8.8.8.8", port = 53, timeout = 3):
+    
+    # host 8.8.8.8 is one of google's pubilic DNS server on port 53    
+
+    try:
+        socket.setdefaulttimeout(timeout)
+        with socket.create_connection((host, port)):
+            return True
+    except OSError:
+        return False
+
+
+
 
 delim = "::"
 
