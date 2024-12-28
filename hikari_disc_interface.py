@@ -1,7 +1,6 @@
 import hikari 
 import lightbulb
 import asyncio
-from dotenv import load_dotenv
 import os
 
 # hikari documentation
@@ -10,22 +9,19 @@ import os
 class hiakri_discord_interface:
     def __init__(self, ACCESS_TOKEN, PREFIX_ = "!"):
         self.PREFIX = PREFIX_
-
-        print(ACCESS_TOKEN)
         self.bot = lightbulb.BotApp(
             token = ACCESS_TOKEN, 
             intents = hikari.Intents.ALL, 
             prefix = self.PREFIX)
         
         self.register_listeners()
-        self.register_commands()
+        self.register_msg_commands()
+        self.register_voice_commands()
 
     def start(self):
         self.bot.run()
 
     def register_listeners(self):
-
-
         """
 
         START EVENT AND INITIALIZATION
@@ -49,9 +45,23 @@ class hiakri_discord_interface:
         async def on_exception(event: hikari.ExceptionEvent):
             print(event.exception)
 
+    def register_msg_commands(self):
+        """
+        
+        """
 
+        @self.bot.listen(hikari.MessageCreateEvent)
+        async def on_message(event: hikari.MessageCreateEvent):
+            if event.author.is_bot:
+                return 
+            
+            if isinstance(event.message.channel_id, hikari.Snowflake):
+                try: 
+                    await event.message.respond("recived")
+                except Exception as e:
+                    print(f"failed to respond {e}")
 
-    def register_commands(self):
+    def register_voice_commands(self):
         """
 
         VOICE 
