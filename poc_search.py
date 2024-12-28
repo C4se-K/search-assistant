@@ -5,7 +5,7 @@ from Bio import Entrez
 
 
 def search(query):
-    Entrez.email = 'your.email@example.com'
+    Entrez.email = 'email@email.com'
     handle = Entrez.esearch(db='pubmed', sort='relevance', retmax='20', retmode='xml', term=query)
     results = Entrez.read(handle)
     return results
@@ -17,8 +17,11 @@ def fetch_details(id_list):
     return results
 
 
+search_key = 'dream and god'
+
+
 if __name__ == '__main__':
-    results = search('fever dream and god')
+    results = search(search_key)
     id_list = results['IdList']
 
     # for example if the search criteria is too narrow
