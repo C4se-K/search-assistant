@@ -1,3 +1,10 @@
 import hikari 
+from dotenv import load_dotenv
+import os
 
-bot = hikari.GatewayBot(token="...")
+load_dotenv()
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+
+print(ACCESS_TOKEN)
+
+#bot = hikari.GatewayBot(token=ACCESS_TOKEN)
