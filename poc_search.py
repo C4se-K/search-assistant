@@ -18,11 +18,29 @@ def fetch_details(id_list):
 
 
 if __name__ == '__main__':
-    results = search('fever')
+    results = search('fever dream and god')
     id_list = results['IdList']
-    papers = fetch_details(id_list)
-    for i, paper in enumerate(papers['PubmedArticle']):
-        print("{}) {}".format(i+1, paper['MedlineCitation']['Article']['ArticleTitle']))
+
+    # for example if the search criteria is too narrow
+    # or if no results are returned
+    if not id_list:
+        print('list is empty')
+    
+    else:
+        papers = fetch_details(id_list)
+
+
+        for i, paper in enumerate(papers['PubmedArticle']):
+            pid = id_list[i]
+            title = paper['MedlineCitation']['Article']['ArticleTitle']
+
+            abstract = paper['MedlineCitation']['Article'].get('Abstract', {}).get('AbstractText', ['No abstract avilable'])[0]
+
+            print(f"{i+1} PID: {pid}")
+            print(f"    TitleL {title}")
+            print(f"    Abstract : {abstract}\n")
+
+    
 
 
 print("completed operations")
