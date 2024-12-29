@@ -7,13 +7,8 @@ import discord
 import os
 from dotenv import load_dotenv
 
-
-
-
-import discord
-from discord.ext import commands
-import asyncio
-
+from threading import Event
+import time
 
 intents = discord.Intents.default()
 intents.message_content = True
