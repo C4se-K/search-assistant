@@ -4,8 +4,6 @@ import wave
 import os
 from dotenv import load_dotenv
 
-
-
 import threading
 import time
 
@@ -107,11 +105,6 @@ async def join(ctx):
     # start stream
 
     vc.start_recording(discord.sinks.WaveSink(), once_done)
-
-
-
-
-
 
 @bot.command()
 async def leave(ctx):
