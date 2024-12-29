@@ -9,15 +9,18 @@ import os
 
 from discord_audio_helper import ExtendVoiceClient
 
-
+import threading
+import queue
+import asyncio
 
 class Discord_Interface:
-    def __init__(self, token, intents_msg=True, prefix = "!"):        
+    def __init__(self, raw_audio_queue, command_queue, intents_msg=True, prefix = "!"):        
         """
         vars
         """
         #print("init")
-        self.ACCESS_TOKEN = token
+        self.RAW_AUDIO = raw_audio_queue
+        self.COMMAND = command_queue
 
         self.intents = discord.Intents.default()
         self.intents.message_content = intents_msg
@@ -28,8 +31,14 @@ class Discord_Interface:
         self.register_basic_commands()
         self.register_audio_commands()
 
-    def run_(self):
-        self.bot.run(self.ACCESS_TOKEN)
+    def run_(self, ACCESS_TOKEN):
+        self.bot.run(ACCESS_TOKEN)
+
+    def enable_voice():
+        pass
+
+    def disable_voice():
+        pass
 
     def register_basic_commands(self):
         
@@ -39,15 +48,15 @@ class Discord_Interface:
 
         @self.bot.event
         async def on_ready():
-            print("all systems nominal")
-            print(f"Bot is online as {self.bot.user}")
+            self.COMMAND.put("all systems nominal")
+            self.COMMAND.put(f"Bot is online as {self.bot.user}")
 
         @self.bot.event
         async def on_message(message):
             if message.author == self.bot.user:
                 return
 
-            print(f"Received message: {message.content}")
+            self.COMMAND.put(f"Received message: {message.content}")
             await self.bot.process_commands(message)
 
         @self.bot.command()
@@ -55,10 +64,8 @@ class Discord_Interface:
             await ctx.send("Test command works!")
 
     def register_audio_commands(self):
-
-
         async def once_done(self, *args):
-            pass
+            pass #does nothing
 
         @self.bot.command()
         async def join(ctx):
@@ -68,6 +75,7 @@ class Discord_Interface:
             then starts the recording stream
             
             """
+            #locates the sender and joins the call
             if ctx.author.voice:
                 channel = ctx.author.voice.channel
                 vc = await channel.connect(cls = ExtendVoiceClient)
@@ -77,30 +85,55 @@ class Discord_Interface:
                 await ctx.send("You must be in a voice channel to use this command.")
 
             # start stream
-
-            vc.start_recording(discord.sinks.WaveSink(), once_done)
+            vc.start_recording(discord.sinks.WaveSink(), once_done, raw_audio_queue= self.RAW_AUDIO)
 
         @self.bot.command()
         async def leave(ctx):
+            #stop the websocket stream
             try:
                 vc = self.connections[ctx.guild.id]
                 vc.stop_recording()
             except Exception as e:
                 print(f"caught an exception {e}")
 
+            #leave the voice channel
             if ctx.guild.id in self.connections:
                 vc = self.connections[ctx.guild.id]
-                await vc.disconnect()  # Disconnect the bot from the voice channel.
-                del self.connections[ctx.guild.id]  # Remove from cache.
+                await vc.disconnect()
+                del self.connections[ctx.guild.id]
                 await ctx.send("Disconnected from the voice channel.")
             else:
                 await ctx.send("Bot is not connected to a voice channel.")
 
 
 
-if __name__ == "__main__":
+
+#from interface_discord_pycord import Discord_Interface
+
+def main():
+    raw_audio_queue = queue.Queue()
+    command_queue = queue.Queue()
+
+
     load_dotenv()
     ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-    bot = Discord_Interface(ACCESS_TOKEN)
-    bot.run_()
+
+    bot = Discord_Interface(raw_audio_queue, command_queue)
+    threading.Thread(target=bot.run_, args = (ACCESS_TOKEN,), daemon=True).start()
+
+    print('nominal')
+    try:
+        while True:
+            if not command_queue.empty():
+                print(command_queue.get())   
+
+            if not raw_audio_queue.empty():
+                print(raw_audio_queue.get())   
+
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        ...
+
+if __name__ == "__main__":
+    main()
     
