@@ -57,7 +57,7 @@ class ExtendDecodeManager(DecodeManager):
                 continue
 
             if data.decoded_data:
-                self.RAW_AUDIO.put(f"{data.decoded_data}")
+                self.RAW_AUDIO.put(data.decoded_data)
                 #print(f"{data.decoded_data.hex()}")
 
 #Overriding start_recording from VoiceClient

@@ -108,32 +108,10 @@ class Discord_Interface:
 
 
 
-#from interface_discord_pycord import Discord_Interface
-
-def main():
-    raw_audio_queue = queue.Queue()
-    command_queue = queue.Queue()
 
 
-    load_dotenv()
-    ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 
-    bot = Discord_Interface(raw_audio_queue, command_queue)
-    threading.Thread(target=bot.run_, args = (ACCESS_TOKEN,), daemon=True).start()
 
-    print('nominal')
-    try:
-        while True:
-            if not command_queue.empty():
-                print(command_queue.get())   
 
-            if not raw_audio_queue.empty():
-                print(raw_audio_queue.get())   
 
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        ...
 
-if __name__ == "__main__":
-    main()
-    
