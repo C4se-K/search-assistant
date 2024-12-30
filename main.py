@@ -145,9 +145,6 @@ def preprocess_decoded(data, original_sample_rate = 48000):
     
     return audio
 
-
-
-
 def process_audio(audio):
     start_time = time.time()
     #global buffer_count, buffer_store, total, first_sentence
@@ -162,7 +159,15 @@ def process_audio(audio):
         #first_sentence = True
 
 
+
+
+target_size = 16000
+silence_threshold = 0.5
+
+
 def process_buffer():
+    global buffer
+
     if len(buffer) >= target_size:
         #first_sentence = False
         audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
@@ -172,7 +177,7 @@ def process_buffer():
         process_audio(audio)
 
 
-        #buffer_ready = True
+
 
 
 try:
@@ -180,19 +185,13 @@ try:
         if not raw_audio_queue.empty():
             data = np.frombuffer(preprocess_decoded(raw_audio_queue.get()), dtype=np.int16)
             buffer = np.concatenate((buffer, np.frombuffer(data)))
-            
-        
-        target_size = 32000
 
-        #print(len(buffer))
+        print(f"\r{len(buffer)}", end = " ")
+        
         process_buffer()
-        
-        
+
+
         #time.sleep(0.05)
-
-
-
-
 except KeyboardInterrupt:
     pass
 
