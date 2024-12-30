@@ -24,27 +24,6 @@ import webrtcvad
 
 
 
-def preprocess_decoded(data, original_sample_rate = 48000):
-    #convert bytes to numpy array
-    audio = np.frombuffer(data, dtype = np.int16)
-
-    #convert to mono if stereo
-    if len(audio) % 2 ==0:
-        audio = audio.reshape(-1, 2)
-        audio = np.mean(audio, axis = 1).astype(np.int16)
-    else:
-        raise ValueError("cannot interpret as stereo")
-    
-    #covert to 16000 hz
-    if original_sample_rate != target_bits_per_sample:
-        num_samples = int(len(audio) * (target_sample_rate / original_sample_rate))
-        audio = resample(audio, num_samples).astype(np.int16)
-    
-    return audio
-
-
-
-
 
 
 vad = webrtcvad.Vad(2)
@@ -145,10 +124,34 @@ first_sentence = True
 total = []
 count = 0
 
+
+
+
+def preprocess_decoded(data, original_sample_rate = 48000):
+    #convert bytes to numpy array
+    audio = np.frombuffer(data, dtype = np.int16)
+
+    #convert to mono if stereo
+    if len(audio) % 2 ==0:
+        audio = audio.reshape(-1, 2)
+        audio = np.mean(audio, axis = 1).astype(np.int16)
+    else:
+        raise ValueError("cannot interpret as stereo")
+    
+    #covert to 16000 hz
+    if original_sample_rate != target_bits_per_sample:
+        num_samples = int(len(audio) * (target_sample_rate / original_sample_rate))
+        audio = resample(audio, num_samples).astype(np.int16)
+    
+    return audio
+
+
+
+
 def process_audio(audio):
     start_time = time.time()
-    global buffer_count, buffer_store, total, first_sentence
-    buffer_count += 1
+    #global buffer_count, buffer_store, total, first_sentence
+    #$buffer_count += 1
 
 
     segments, _ = model.transcribe(audio, language="en", beam_size= 5)
@@ -159,7 +162,17 @@ def process_audio(audio):
         #first_sentence = True
 
 
+def process_buffer():
+    if len(buffer) >= target_size:
+        #first_sentence = False
+        audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
 
+        #data = buffer[:target_size]
+        buffer = buffer[target_size:]
+        process_audio(audio)
+
+
+        #buffer_ready = True
 
 
 try:
@@ -172,17 +185,8 @@ try:
         target_size = 32000
 
         #print(len(buffer))
-
-        if len(buffer) >= target_size:
-            #first_sentence = False
-            audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
-
-            #data = buffer[:target_size]
-            buffer = buffer[target_size:]
-            process_audio(audio)
-
- 
-            #buffer_ready = True
+        process_buffer()
+        
         
         #time.sleep(0.05)
 
