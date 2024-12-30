@@ -14,16 +14,15 @@ import os
 from interface_discord_pycord import Discord_Interface
 from transcription import Transcription_Manager
 
+from collections import deque
+import numpy as np
+
+import webrtcvad
 
 
 
 
 
-
-
-
-def process_opus_decoded():
-    pass
 
 def preprocess_decoded(data, original_sample_rate = 48000):
     #convert bytes to numpy array
@@ -43,64 +42,19 @@ def preprocess_decoded(data, original_sample_rate = 48000):
     
     return audio
 
-def transcribe(audio):
-    #print(len(audio))
-    """
-    if len(audio) != 32000:
-        raise ValueError("incorrect len")
-    if len(audio.shape) != 1:
-        raise ValueError("incorrect shape")
-    """
-    #print(f"test: sample size: {len(audio)}")
-
-    #audio = audio.astype(np.float32) / 32768.0
-
-    segments, _ = model.transcribe(audio, beam_size=4)
-
-    transcription = []
-    for segment in segments:
-       # transcription.append(segment["text"])
-       print(segment.text)
-
-    #print(transcription)
-    #return transcription
-
-def handle_stream(length= 2):
-    ...
 
 
 
 
 
+vad = webrtcvad.Vad(2)
+
+buffer = deque(maxlen=32000)
+default_buffer_size = 16000
+speech_active = False
 
 
 
-
-
-
-def main():
-    print('[MAIN] all systems nominal')
-    try:
-        while True:
-            if not command_queue.empty():
-                print(command_queue.get())   
-
-            if not raw_audio_queue.empty():
-                data = raw_audio_queue.get()
-                buffer.extend(preprocess_decoded(data))
-
-
-            if len(buffer) >= target_size:
-                audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
-                audio = audio.astype(np.float32) / 32768.0
-                transcribe(audio)
-
-                buffer = buffer[target_size:]
-                
-
-            #time.sleep(0.1)
-    except KeyboardInterrupt:
-        ...
 
 """
 
@@ -126,21 +80,22 @@ target_bits_per_sample = 16
 buffer = bytearray()
 target_size = target_sample_rate * 2 #target sample rate is 16000 -> *2 = 32000,  2 seconds
 
-#model parameters
-model_size = "large-v3"
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-
+print(f"[MAIN] general parameters took {(time.time() - start_time):.2f} seconds to start")
 
 """
 
 faster-whisper model setup
 
 """
+start_time = time.time()
+
+
+#model parameters
+model_size = "large-v3"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 model = WhisperModel(model_size, device="cuda", compute_type="float16")
 print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
-start_time = time.time()
 
 #ts = Transcription_Manger(raw_audio_queue)
 
@@ -150,6 +105,9 @@ start_time = time.time()
 discord bot setup
 
 """
+start_time = time.time()
+
+
 #interface discord bot
 bot_ready = threading.Event()
 
@@ -164,6 +122,77 @@ start_time = time.time()
 
 
 
-if __name__ == "__main__":
-    main()
+
+
+
+audio_queue = queue.Queue()
+transcription_list = []
+buffer_count = 0
+buffer_store = []
+
+buffer = np.array([], dtype=np.int16)
+target_size = 2 * 16000
+
+l = 0
+
+buffer_ready = False
+
+print('[MAIN] all systems nominal')
+
+revision_interval = 3
+first_sentence = True
+
+total = []
+count = 0
+
+def process_audio(audio):
+    start_time = time.time()
+    global buffer_count, buffer_store, total, first_sentence
+    buffer_count += 1
+
+
+    segments, _ = model.transcribe(audio, language="en", beam_size= 5)
+    transcription = " ".join([segment.text for segment in segments])
+    print(f"{(time.time() - start_time):.2f} sec: {transcription}")
+
+    #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
+        #first_sentence = True
+
+
+
+
+
+try:
+    while True:
+        if not raw_audio_queue.empty():
+            data = np.frombuffer(preprocess_decoded(raw_audio_queue.get()), dtype=np.int16)
+            buffer = np.concatenate((buffer, np.frombuffer(data)))
+            
+        
+        target_size = 32000
+
+        #print(len(buffer))
+
+        if len(buffer) >= target_size:
+            #first_sentence = False
+            audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
+
+            #data = buffer[:target_size]
+            buffer = buffer[target_size:]
+            process_audio(audio)
+
+ 
+            #buffer_ready = True
+        
+        #time.sleep(0.05)
+
+
+
+
+except KeyboardInterrupt:
+    pass
+
+
+#if __name__ == "__main__":
+    #main()
     
