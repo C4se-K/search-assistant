@@ -1,17 +1,15 @@
-import os 
-import time
-import socket
-from dotenv import load_dotenv
-import threading
-import queue
-import asyncio
-
-
-import wave
-import numpy as np
-from scipy.signal import resample
-
 from faster_whisper import WhisperModel
+from scipy.signal import resample
+from dotenv import load_dotenv
+import numpy as np
+import threading
+import asyncio
+import socket
+import queue
+import time
+import math
+import wave
+import os 
 
 from interface_discord_pycord import Discord_Interface
 from transcription import Transcription_Manager
@@ -22,17 +20,6 @@ from transcription import Transcription_Manager
 
 
 
-
-
-
-
-
-
-
-
-target_sample_rate = 16000
-target_channels = 1
-target_bits_per_sample = 16
 
 
 def process_opus_decoded():
@@ -83,50 +70,25 @@ def handle_stream(length= 2):
 
 
 
-model_size = "large-v3"
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-model = WhisperModel(model_size, device="cuda", compute_type="float16")
+
+
+
+
 
 
 
 def main():
-    raw_audio_queue = queue.Queue()
-    command_queue = queue.Queue()
-
-
-    load_dotenv()
-    ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-
-    #ts = Transcription_Manger(raw_audio_queue)
-
-    bot = Discord_Interface(raw_audio_queue, command_queue)
-    threading.Thread(target=bot.run_, args = (ACCESS_TOKEN,), daemon=True).start()
-
-
-
-    buffer = bytearray()
-    target_size = target_sample_rate * 2 #target sample rate is 16000 -> *2 = 32000,  2 seconds
-
-
-    
-
-    print('nominal')
+    print('[MAIN] all systems nominal')
     try:
         while True:
             if not command_queue.empty():
                 print(command_queue.get())   
 
             if not raw_audio_queue.empty():
-                
-
-                #print(raw_audio_queue.get())   
-
                 data = raw_audio_queue.get()
                 buffer.extend(preprocess_decoded(data))
-                #processed = preprocess_decoded(data)
 
-                #transcribe(processed)
 
             if len(buffer) >= target_size:
                 audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
@@ -139,6 +101,68 @@ def main():
             #time.sleep(0.1)
     except KeyboardInterrupt:
         ...
+
+"""
+
+VAR setup
+
+"""
+start_time = time.time()
+
+#general
+raw_audio_queue = queue.Queue()
+command_queue = queue.Queue()
+
+
+#bot
+load_dotenv()
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+
+#audio
+target_sample_rate = 16000
+target_channels = 1
+target_bits_per_sample = 16
+
+buffer = bytearray()
+target_size = target_sample_rate * 2 #target sample rate is 16000 -> *2 = 32000,  2 seconds
+
+#model parameters
+model_size = "large-v3"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+
+
+"""
+
+faster-whisper model setup
+
+"""
+
+model = WhisperModel(model_size, device="cuda", compute_type="float16")
+print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
+start_time = time.time()
+
+#ts = Transcription_Manger(raw_audio_queue)
+
+
+"""
+
+discord bot setup
+
+"""
+#interface discord bot
+bot_ready = threading.Event()
+
+bot = Discord_Interface(raw_audio_queue, command_queue, bot_ready)
+threading.Thread(target=bot.run_, args = (ACCESS_TOKEN,), daemon=True).start()
+
+#wait for bot to start
+bot_ready.wait()
+print(f"[MAIN] discord interface bot took {(time.time() - start_time):.2f} seconds to start")
+start_time = time.time()
+
+
+
 
 if __name__ == "__main__":
     main()

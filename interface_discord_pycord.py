@@ -14,11 +14,12 @@ import queue
 import asyncio
 
 class Discord_Interface:
-    def __init__(self, raw_audio_queue, command_queue, intents_msg=True, prefix = "!"):        
+    def __init__(self, raw_audio_queue, command_queue, bot_ready, intents_msg=True, prefix = "!"):        
         """
         vars
         """
         #print("init")
+        self.READY = bot_ready
         self.RAW_AUDIO = raw_audio_queue
         self.COMMAND = command_queue
 
@@ -28,6 +29,7 @@ class Discord_Interface:
 
         self.connections = {}
 
+        #main functions
         self.register_basic_commands()
         self.register_audio_commands()
 
@@ -48,15 +50,16 @@ class Discord_Interface:
 
         @self.bot.event
         async def on_ready():
-            self.COMMAND.put("all systems nominal")
-            self.COMMAND.put(f"Bot is online as {self.bot.user}")
+            #self.COMMAND.put("all systems nominal")
+            self.COMMAND.put(f"[BOT] online as {self.bot.user}")
+            self.READY.set()
 
         @self.bot.event
         async def on_message(message):
             if message.author == self.bot.user:
                 return
 
-            self.COMMAND.put(f"Received message: {message.content}")
+            self.COMMAND.put(f"[BOT] Received message: {message.content}")
             await self.bot.process_commands(message)
 
         @self.bot.command()
