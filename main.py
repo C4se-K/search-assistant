@@ -162,11 +162,23 @@ def process_audio(audio):
 
 
 target_size = 16000
+data_minimum = 1600
 silence_threshold = 0.5
-
+last_packet_time = time.time()
 
 def process_buffer():
-    global buffer
+    global buffer, last_packet_time
+
+    cur_time = time.time()
+
+    if len(buffer) < target_size and len(buffer) >= data_minimum and (cur_time-last_packet_time) > silence_threshold:
+        data_size = len(buffer)
+        audio = np.frombuffer(buffer[:data_size], dtype=np.int16)
+
+        #data = buffer[:target_size]
+        buffer = buffer[data_size:]
+        process_audio(audio)
+
 
     if len(buffer) >= target_size:
         #first_sentence = False
@@ -178,22 +190,26 @@ def process_buffer():
 
 
 
-
-
 try:
     while True:
+        if not command_queue.empty():
+                print(command_queue.get()) 
+
         if not raw_audio_queue.empty():
             data = np.frombuffer(preprocess_decoded(raw_audio_queue.get()), dtype=np.int16)
             buffer = np.concatenate((buffer, np.frombuffer(data)))
+            last_packet_time = time.time()
 
-        print(f"\r{len(buffer)}", end = " ")
+        #print(f"\r{len(buffer)}", end = " ")
         
         process_buffer()
 
 
         #time.sleep(0.05)
 except KeyboardInterrupt:
-    pass
+    bot.leave_all()
+finally:
+    print("[MAIN] system terminated")
 
 
 #if __name__ == "__main__":

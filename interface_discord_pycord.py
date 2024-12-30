@@ -36,11 +36,43 @@ class Discord_Interface:
     def run_(self, ACCESS_TOKEN):
         self.bot.run(ACCESS_TOKEN)
 
-    def enable_voice():
+    def enable_voice(self):
         pass
 
-    def disable_voice():
+    def disable_voice(self):
         pass
+
+
+    """
+    well, something goes wrong here!?
+    
+    """
+    def leave_all(self):
+        loop = self.bot.loop
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(self.leave_all_helper(), loop)
+            try:
+                future.result()
+            except Exception as e:
+                print(f"[ERROR] something went wrong {e}")
+        else:
+            print("event loop still running")
+
+    async def leave_all_helper(self):
+        count = 0
+        if not self.connections:
+            return
+
+        for guild_id, vc in list(self.connections.items()):
+            try:
+                await vc.disconnect()
+                del self.connections[guild_id]
+            except Exception as e:
+                print(f"[ERROR] exception when leaving all: {e}")
+            count += 1 
+
+        print(f"[BOT] terminated {count} connections")
+
 
     def register_basic_commands(self):
         
@@ -108,7 +140,7 @@ class Discord_Interface:
             else:
                 await ctx.send("Bot is not connected to a voice channel.")
 
-
+        
 
 
 
