@@ -28,6 +28,7 @@ class Discord_Interface:
         self.bot = commands.Bot(command_prefix=prefix, intents=self.intents)
 
         self.connections = {}
+        self.channel_memory = None
 
         #main functions
         self.register_basic_commands()
@@ -71,6 +72,34 @@ class Discord_Interface:
         print(f"[BOT] terminated {count} connections")
 
 
+
+
+
+    def send_message(self, message):
+        loop = self.bot.loop
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(self.send_message_helper(message), loop)
+            try:
+                future.result()
+            except Exception as e:
+                print(f"[ERROR] something went wrong {e}")
+        else:
+            print("event loop still running")
+
+    async def send_message_helper(self, message):
+        if self.channel_memory:
+            try:
+                channel = self.bot.get_channel(self.channel_memory)
+                await channel.send(message)
+            except discord.DiscordException as e:
+                print(f"[ERROR] somethinbg went wrong 1 {e}")
+            except Exception as e:
+                print(f"[ERROR] somethinbg went wrong 2 {e}")
+
+
+
+
+
     def register_basic_commands(self):
         
         """
@@ -111,6 +140,7 @@ class Discord_Interface:
             if ctx.author.voice:
                 channel = ctx.author.voice.channel
                 vc = await channel.connect(cls = ExtendVoiceClient)
+                self.channel_memory = ctx.channel.id
                 self.connections[ctx.guild.id] = vc
                 await ctx.send(f"Connected to {channel.name}!")
             else:

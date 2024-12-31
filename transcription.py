@@ -13,8 +13,10 @@ import webrtcvad
 
 
 class Transcription_Manager:
-    def __init__(self): # , ready <- assuming this is threaded
+    def __init__(self, send): # , ready <- assuming this is threaded
         #self.READY = ready
+
+        self.send_queue = send
 
         #audio
         self.target_sample_rate = 16000
@@ -39,6 +41,8 @@ class Transcription_Manager:
 
         self.continuing_prompt = False
         self.previous_output = ""
+
+        self.total = ""
 
 
         self.intiaite_model()
@@ -100,11 +104,16 @@ class Transcription_Manager:
         #global buffer_count, buffer_store, total, first_sentence
         #$buffer_count += 1
 
-
         segments, _ = self.model.transcribe(audio, language="en", beam_size= 5, initial_prompt=prompt_)
         transcription = " ".join([segment.text for segment in segments])
+
+        self.send_queue.put(f"{(time.time() - start_time):.2f} sec: {transcription}")
         print(f"{(time.time() - start_time):.2f} sec: {transcription}")
+
+
+        self.total = "".join(transcription)
         self.previous_output = transcription
+        #print(f"{self.total}", end = " ")
 
         #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
             #first_sentence = True

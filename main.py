@@ -62,9 +62,15 @@ start_time = time.time()
 
 #transcription_list = []
 
+send = queue.Queue()
+
 start_time = time.time()
-transcription  = Transcription_Manager()
+transcription  = Transcription_Manager(send)
 print(f"[MAIN] Transcription Manager took {(time.time() - start_time):.2f} seconds to start")
+
+
+
+
 
 
 print('[MAIN] all systems nominal')
@@ -74,11 +80,15 @@ try:
         if not command_queue.empty():
             print(command_queue.get()) 
 
+        if not send.empty():
+            bot.send_message(send.get())
+
         if not raw_audio_queue.empty():
             transcription.add_to_buffer(raw_audio_queue.get())
 
         #print(f"\r{len(buffer)}", end = " ")
         #being called too early
+
         transcription.process_buffer()
 
 except KeyboardInterrupt:
