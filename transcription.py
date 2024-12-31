@@ -133,33 +133,32 @@ class Transcription_Manager:
     """
     def process_buffer(self):
         cur_time = time.time()
+        frame = len(self.buffer)
 
-        if (len(self.buffer) < self.data_minimum and 
-            (cur_time-self.last_packet_time) > self.silence_threshold*2):
+        if (frame < self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold*4):
 
-            self.buffer = self.buffer[len(self.buffer):]
+            self.buffer = self.buffer[frame:]
             self.continuing_prompt = False
             return
 
-        if (len(self.buffer) < self.target_size and 
-            len(self.buffer) >= self.data_minimum and 
+        if (frame < self.target_size and 
+            frame >= self.data_minimum and 
             (cur_time-self.last_packet_time) > self.silence_threshold):
 
-            data_size = len(self.buffer)
-            audio = np.frombuffer(self.buffer[:data_size], dtype=np.int16)
+            
+            audio = np.frombuffer(self.buffer[:frame], dtype=np.int16)
+            self.buffer = self.buffer[frame:]
 
-            #data = buffer[:target_size]
-            self.buffer = self.buffer[data_size:]
             self.process_audio(audio)
             self.continuing_prompt = False
             return
 
 
-        if len(self.buffer) >= self.target_size:
-            #first_sentence = False
+        if frame >= self.target_size:
             audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
 
-            #data = buffer[:target_size]
+
             self.buffer = self.buffer[self.target_size:]
 
             prompt = ""
