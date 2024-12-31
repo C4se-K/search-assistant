@@ -26,6 +26,8 @@ class Transcription_Manager:
         self.silence_threshold = 0.5
         self.last_packet_time = time.time()
 
+        self.buffer = np.array([], dtype=np.int16)
+
         
         self.model_size = "large-v3"
         os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -54,6 +56,12 @@ class Transcription_Manager:
         self.model = WhisperModel(self.model_size, device="cuda", compute_type="float16")
         print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
 
+    def add_to_buffer(self, data): #raw_audio_queue.get()
+        #print('being called')
+        temp = np.frombuffer(self.preprocess_decoded(data), dtype=np.int16)
+        self.buffer = np.concatenate((self.buffer, np.frombuffer(temp)))
+        self.last_packet_time = time.time()
+        #print(len(self.buffer))
 
     def preprocess_decoded(self, data, original_sample_rate = 48000):
         #convert bytes to numpy array
@@ -87,23 +95,27 @@ class Transcription_Manager:
             #first_sentence = True
 
     def process_buffer(self):
-
+        #print('being called 2')
 
         cur_time = time.time()
 
-        if len(buffer) < self.target_size and len(buffer) >= self.data_minimum and (cur_time-last_packet_time) > self.silence_threshold:
-            data_size = len(buffer)
-            audio = np.frombuffer(buffer[:data_size], dtype=np.int16)
+        if (len(self.buffer) < self.target_size and 
+            len(self.buffer) >= self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold):
+
+            data_size = len(self.buffer)
+            audio = np.frombuffer(self.buffer[:data_size], dtype=np.int16)
 
             #data = buffer[:target_size]
-            buffer = buffer[data_size:]
+            self.buffer = self.buffer[data_size:]
             self.process_audio(audio)
 
 
-        if len(buffer) >= self.target_size:
+        if len(self.buffer) >= self.target_size:
             #first_sentence = False
-            audio = np.frombuffer(buffer[:self.target_size], dtype=np.int16)
+            audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
 
             #data = buffer[:target_size]
-            buffer = buffer[self.target_size:]
+            self.buffer = self.buffer[self.target_size:]
             self.process_audio(audio)
+
