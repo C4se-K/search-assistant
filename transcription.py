@@ -49,9 +49,6 @@ class Transcription_Manager:
 
         self.on_ready()
 
-    def on_ready(self):
-        #self.READY.set()
-        pass
 
     """
         faster-whisper model setup
@@ -142,6 +139,24 @@ class Transcription_Manager:
             self.continuing_prompt = False
             return
 
+
+
+        if frame >= self.target_size:
+            audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
+
+            self.buffer = self.buffer[self.target_size:]
+
+            prompt = ""
+            if self.continuing_prompt:
+                prompt = self.previous_output
+
+            self.process_audio(audio, prompt)
+            self.continuing_prompt = True
+
+
+
+
+
         if (frame < self.target_size and 
             frame >= self.data_minimum and 
             (cur_time-self.last_packet_time) > self.silence_threshold):
@@ -155,17 +170,5 @@ class Transcription_Manager:
             return
 
 
-        if frame >= self.target_size:
-            audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
-
-
-            self.buffer = self.buffer[self.target_size:]
-
-            prompt = ""
-            if self.continuing_prompt:
-                prompt = self.previous_output
-
-            self.process_audio(audio, prompt)
-            self.continuing_prompt = True
-            return
+        
 
