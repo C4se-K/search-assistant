@@ -19,9 +19,7 @@ class Transcription_Manager:
         self.send_queue = send
 
         #audio
-        self.target_sample_rate = 16000
         self.target_channels = 1
-        self.target_bits_per_sample = 16
 
         self.target_size = 16000 # variable to change
         self.data_minimum = 1600
@@ -47,7 +45,7 @@ class Transcription_Manager:
 
         self.intiaite_model()
 
-        self.on_ready()
+        #self.on_ready()
 
 
     """
@@ -139,7 +137,17 @@ class Transcription_Manager:
             self.continuing_prompt = False
             return
 
+        if (frame < self.target_size and 
+            frame >= self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold):
 
+            
+            audio = np.frombuffer(self.buffer[:frame], dtype=np.int16)
+            self.buffer = self.buffer[frame:]
+
+            self.process_audio(audio)
+            self.continuing_prompt = False
+            return
 
         if frame >= self.target_size:
             audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
@@ -152,22 +160,12 @@ class Transcription_Manager:
 
             self.process_audio(audio, prompt)
             self.continuing_prompt = True
-
-
-
-
-
-        if (frame < self.target_size and 
-            frame >= self.data_minimum and 
-            (cur_time-self.last_packet_time) > self.silence_threshold):
-
-            
-            audio = np.frombuffer(self.buffer[:frame], dtype=np.int16)
-            self.buffer = self.buffer[frame:]
-
-            self.process_audio(audio)
-            self.continuing_prompt = False
             return
+
+
+
+
+        
 
 
         
