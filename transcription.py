@@ -37,6 +37,9 @@ class Transcription_Manager:
         self.revision_interval = 3
         self.first_sentence = True
 
+        self.continuing_prompt = False
+        self.previous_output = ""
+
 
         self.intiaite_model()
 
@@ -92,15 +95,16 @@ class Transcription_Manager:
     """
     runs faster whisper on the data
     """
-    def process_audio(self, audio):
+    def process_audio(self, audio, prompt_ = ""):
         start_time = time.time()
         #global buffer_count, buffer_store, total, first_sentence
         #$buffer_count += 1
 
 
-        segments, _ = self.model.transcribe(audio, language="en", beam_size= 5)
+        segments, _ = self.model.transcribe(audio, language="en", beam_size= 5, initial_prompt=prompt_)
         transcription = " ".join([segment.text for segment in segments])
         print(f"{(time.time() - start_time):.2f} sec: {transcription}")
+        self.previous_output = transcription
 
         #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
             #first_sentence = True
@@ -119,9 +123,14 @@ class Transcription_Manager:
     
     """
     def process_buffer(self):
-        #print('being called 2')
-
         cur_time = time.time()
+
+        if (len(self.buffer) < self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold*2):
+
+            self.buffer = self.buffer[len(self.buffer):]
+            self.continuing_prompt = False
+            return
 
         if (len(self.buffer) < self.target_size and 
             len(self.buffer) >= self.data_minimum and 
@@ -133,6 +142,8 @@ class Transcription_Manager:
             #data = buffer[:target_size]
             self.buffer = self.buffer[data_size:]
             self.process_audio(audio)
+            self.continuing_prompt = False
+            return
 
 
         if len(self.buffer) >= self.target_size:
@@ -141,5 +152,12 @@ class Transcription_Manager:
 
             #data = buffer[:target_size]
             self.buffer = self.buffer[self.target_size:]
-            self.process_audio(audio)
+
+            prompt = ""
+            if self.continuing_prompt:
+                prompt = self.previous_output
+
+            self.process_audio(audio, prompt)
+            self.continuing_prompt = True
+            return
 

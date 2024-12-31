@@ -72,12 +72,13 @@ try:
     
     while True:
         if not command_queue.empty():
-                print(command_queue.get()) 
+            print(command_queue.get()) 
 
         if not raw_audio_queue.empty():
             transcription.add_to_buffer(raw_audio_queue.get())
 
         #print(f"\r{len(buffer)}", end = " ")
+        #being called too early
         transcription.process_buffer()
 
 except KeyboardInterrupt:
