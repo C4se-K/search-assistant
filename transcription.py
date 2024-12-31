@@ -36,8 +36,8 @@ class Transcription_Manager:
         self.model = None
 
 
-        self.revision_interval = 3
-        self.first_sentence = True
+        #self.revision_interval = 3
+        #self.first_sentence = True
 
         self.continuing_prompt = False
         self.previous_output = ""
