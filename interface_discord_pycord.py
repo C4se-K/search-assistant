@@ -43,10 +43,7 @@ class Discord_Interface:
         pass
 
 
-    """
-    well, something goes wrong here!?
-    
-    """
+
     def leave_all(self):
         loop = self.bot.loop
         if loop.is_running():

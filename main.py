@@ -12,7 +12,7 @@ import wave
 import os 
 
 from interface_discord_pycord import Discord_Interface
-from transcription import Transcription_Manager
+#from transcription import Transcription_Manager
 
 from collections import deque
 import numpy as np
@@ -51,32 +51,9 @@ command_queue = queue.Queue()
 load_dotenv()
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 
-#audio
-target_sample_rate = 16000
-target_channels = 1
-target_bits_per_sample = 16
 
-buffer = bytearray()
-target_size = target_sample_rate * 2 #target sample rate is 16000 -> *2 = 32000,  2 seconds
 
 print(f"[MAIN] general parameters took {(time.time() - start_time):.2f} seconds to start")
-
-"""
-
-faster-whisper model setup
-
-"""
-start_time = time.time()
-
-
-#model parameters
-model_size = "large-v3"
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-model = WhisperModel(model_size, device="cuda", compute_type="float16")
-print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
-
-#ts = Transcription_Manger(raw_audio_queue)
 
 
 """
@@ -104,108 +81,148 @@ start_time = time.time()
 
 
 
+
+
+class Transcription_Manager:
+    def __init__(self): # , ready <- assuming this is threaded
+        #self.READY = ready
+
+        #audio
+        self.target_sample_rate = 16000
+        self.target_channels = 1
+        self.target_bits_per_sample = 16
+
+        self.target_size = 16000 # variable to change
+        self.data_minimum = 1600
+        self.silence_threshold = 0.5
+        self.last_packet_time = time.time()
+
+        self.buffer = np.array([], dtype=np.int16)
+
+        
+        self.model_size = "large-v3"
+        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+        self.model = None
+
+
+        self.revision_interval = 3
+        self.first_sentence = True
+
+
+        self.intiaite_model()
+
+        self.on_ready()
+
+    def on_ready(self):
+        #self.READY.set()
+        pass
+
+    """
+        faster-whisper model setup
+    """
+    def intiaite_model(self):
+        start_time = time.time()
+        #model parameters
+        
+        self.model = WhisperModel(self.model_size, device="cuda", compute_type="float16")
+        print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
+
+    def add_to_buffer(self, data): #raw_audio_queue.get()
+        #print('being called')
+        temp = np.frombuffer(self.preprocess_decoded(data), dtype=np.int16)
+        self.buffer = np.concatenate((self.buffer, np.frombuffer(temp)))
+        self.last_packet_time = time.time()
+        #print(len(self.buffer))
+
+    def preprocess_decoded(self, data, original_sample_rate = 48000):
+        #convert bytes to numpy array
+        audio = np.frombuffer(data, dtype = np.int16)
+
+        #convert to mono if stereo
+        if len(audio) % 2 ==0:
+            audio = audio.reshape(-1, 2)
+            audio = np.mean(audio, axis = 1).astype(np.int16)
+        else:
+            raise ValueError("cannot interpret as stereo")
+        
+        #covert to 16000 hz
+        if original_sample_rate != self.target_bits_per_sample:
+            num_samples = int(len(audio) * (self.target_sample_rate / original_sample_rate))
+            audio = resample(audio, num_samples).astype(np.int16)
+        
+        return audio
+
+    def process_audio(self, audio):
+        start_time = time.time()
+        #global buffer_count, buffer_store, total, first_sentence
+        #$buffer_count += 1
+
+
+        segments, _ = self.model.transcribe(audio, language="en", beam_size= 5)
+        transcription = " ".join([segment.text for segment in segments])
+        print(f"{(time.time() - start_time):.2f} sec: {transcription}")
+
+        #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
+            #first_sentence = True
+
+    def process_buffer(self):
+        #print('being called 2')
+
+        cur_time = time.time()
+
+        if (len(self.buffer) < self.target_size and 
+            len(self.buffer) >= self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold):
+
+            data_size = len(self.buffer)
+            audio = np.frombuffer(self.buffer[:data_size], dtype=np.int16)
+
+            #data = buffer[:target_size]
+            self.buffer = self.buffer[data_size:]
+            self.process_audio(audio)
+
+
+        if len(self.buffer) >= self.target_size:
+            #first_sentence = False
+            audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
+
+            #data = buffer[:target_size]
+            self.buffer = self.buffer[self.target_size:]
+            self.process_audio(audio)
+
+
+    
+
+
 audio_queue = queue.Queue()
-transcription_list = []
-buffer_count = 0
-buffer_store = []
+#transcription_list = []
 
-buffer = np.array([], dtype=np.int16)
-target_size = 2 * 16000
 
-l = 0
+start_time = time.time()
+transcription  = Transcription_Manager()
+print(f"[MAIN] Transcription Manager took {(time.time() - start_time):.2f} seconds to start")
 
-buffer_ready = False
 
 print('[MAIN] all systems nominal')
-
-revision_interval = 3
-first_sentence = True
-
-total = []
-count = 0
-
-
-
-
-def preprocess_decoded(data, original_sample_rate = 48000):
-    #convert bytes to numpy array
-    audio = np.frombuffer(data, dtype = np.int16)
-
-    #convert to mono if stereo
-    if len(audio) % 2 ==0:
-        audio = audio.reshape(-1, 2)
-        audio = np.mean(audio, axis = 1).astype(np.int16)
-    else:
-        raise ValueError("cannot interpret as stereo")
-    
-    #covert to 16000 hz
-    if original_sample_rate != target_bits_per_sample:
-        num_samples = int(len(audio) * (target_sample_rate / original_sample_rate))
-        audio = resample(audio, num_samples).astype(np.int16)
-    
-    return audio
-
-def process_audio(audio):
-    start_time = time.time()
-    #global buffer_count, buffer_store, total, first_sentence
-    #$buffer_count += 1
-
-
-    segments, _ = model.transcribe(audio, language="en", beam_size= 5)
-    transcription = " ".join([segment.text for segment in segments])
-    print(f"{(time.time() - start_time):.2f} sec: {transcription}")
-
-    #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
-        #first_sentence = True
-
-
-
-
-target_size = 16000
-data_minimum = 1600
-silence_threshold = 0.5
-last_packet_time = time.time()
-
-def process_buffer():
-    global buffer, last_packet_time
-
-    cur_time = time.time()
-
-    if len(buffer) < target_size and len(buffer) >= data_minimum and (cur_time-last_packet_time) > silence_threshold:
-        data_size = len(buffer)
-        audio = np.frombuffer(buffer[:data_size], dtype=np.int16)
-
-        #data = buffer[:target_size]
-        buffer = buffer[data_size:]
-        process_audio(audio)
-
-
-    if len(buffer) >= target_size:
-        #first_sentence = False
-        audio = np.frombuffer(buffer[:target_size], dtype=np.int16)
-
-        #data = buffer[:target_size]
-        buffer = buffer[target_size:]
-        process_audio(audio)
-
-
-
 try:
+    
     while True:
         if not command_queue.empty():
                 print(command_queue.get()) 
 
         if not raw_audio_queue.empty():
-            data = np.frombuffer(preprocess_decoded(raw_audio_queue.get()), dtype=np.int16)
-            buffer = np.concatenate((buffer, np.frombuffer(data)))
-            last_packet_time = time.time()
+            transcription.add_to_buffer(raw_audio_queue.get())
+
+            #data = np.frombuffer(transcription.preprocess_decoded(raw_audio_queue.get()), dtype=np.int16)
+            #buffer = np.concatenate((buffer, np.frombuffer(data)))
+            #last_packet_time = time.time()
 
         #print(f"\r{len(buffer)}", end = " ")
         
-        process_buffer()
+        transcription.process_buffer()
 
 
-        #time.sleep(0.05)
+        time.sleep(0.05)
 except KeyboardInterrupt:
     bot.leave_all()
 finally:
