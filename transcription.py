@@ -56,6 +56,9 @@ class Transcription_Manager:
         self.model = WhisperModel(self.model_size, device="cuda", compute_type="float16")
         print(f"[MAIN] faster-whisper took {(time.time() - start_time):.2f} seconds to start")
 
+    """
+    converts raw pcm data to a numpy array before appending onto the transciption buffer
+    """
     def add_to_buffer(self, data): #raw_audio_queue.get()
         #print('being called')
         temp = np.frombuffer(self.preprocess_decoded(data), dtype=np.int16)
@@ -63,6 +66,11 @@ class Transcription_Manager:
         self.last_packet_time = time.time()
         #print(len(self.buffer))
 
+    """
+    converts opus packets recieved from  discord to raw pcm
+
+    also resamples data to 16000 to prepare for transcription
+    """
     def preprocess_decoded(self, data, original_sample_rate = 48000):
         #convert bytes to numpy array
         audio = np.frombuffer(data, dtype = np.int16)
@@ -81,6 +89,9 @@ class Transcription_Manager:
         
         return audio
 
+    """
+    runs faster whisper on the data
+    """
     def process_audio(self, audio):
         start_time = time.time()
         #global buffer_count, buffer_store, total, first_sentence
@@ -94,6 +105,19 @@ class Transcription_Manager:
         #if transcription.endswith(".") or transcription.endswith("?") or transcription.endswith("!"):
             #first_sentence = True
 
+    """
+    buffer management 
+
+    if data < limit and no more data, send
+
+    if data >= limit and more data, send in bactches
+    """
+
+    """
+    a potential optimization may be to reduce the number of 
+    calls it get since its not doing anything in 99% of calls
+    
+    """
     def process_buffer(self):
         #print('being called 2')
 
