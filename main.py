@@ -18,13 +18,6 @@ from transcription import Transcription_Manager
 
 
 
-
-
-
-
-vad = webrtcvad.Vad(2)
-
-
 """
 
 VAR setup
@@ -69,13 +62,7 @@ transcription  = Transcription_Manager(send)
 print(f"[MAIN] Transcription Manager took {(time.time() - start_time):.2f} seconds to start")
 
 
-
-
-
-
-print('[MAIN] all systems nominal')
-try:
-    
+def messenger():
     while True:
         if not command_queue.empty():
             print(command_queue.get()) 
@@ -86,10 +73,21 @@ try:
         if not raw_audio_queue.empty():
             transcription.add_to_buffer(raw_audio_queue.get())
 
+ms = threading.Thread(target = messenger, daemon=True).start()
+
+
+
+print('[MAIN] all systems nominal')
+
+
+try:
+    
+    while True:
         #print(f"\r{len(buffer)}", end = " ")
         #being called too early
 
         transcription.process_buffer()
+        time.sleep(0.1)
 
 except KeyboardInterrupt:
     bot.leave_all()

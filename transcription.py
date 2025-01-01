@@ -63,7 +63,7 @@ class Transcription_Manager:
     """
     def add_to_buffer(self, data): #raw_audio_queue.get()
         #print('being called')
-        temp = np.frombuffer(self.preprocess_decoded(data), dtype=np.int16)
+        temp = self.preprocess_decoded(data)
         self.buffer = np.concatenate((self.buffer, np.frombuffer(temp)))
         self.last_packet_time = time.time()
         #print(len(self.buffer))
@@ -85,8 +85,8 @@ class Transcription_Manager:
             raise ValueError("cannot interpret as stereo")
         
         #covert to 16000 hz
-        if original_sample_rate != self.target_bits_per_sample:
-            num_samples = int(len(audio) * (self.target_sample_rate / original_sample_rate))
+        if original_sample_rate != 16000:
+            num_samples = int(len(audio) * (16000 / original_sample_rate))
             audio = resample(audio, num_samples).astype(np.int16)
         
         return audio
@@ -137,17 +137,7 @@ class Transcription_Manager:
             self.continuing_prompt = False
             return
 
-        if (frame < self.target_size and 
-            frame >= self.data_minimum and 
-            (cur_time-self.last_packet_time) > self.silence_threshold):
 
-            
-            audio = np.frombuffer(self.buffer[:frame], dtype=np.int16)
-            self.buffer = self.buffer[frame:]
-
-            self.process_audio(audio)
-            self.continuing_prompt = False
-            return
 
         if frame >= self.target_size:
             audio = np.frombuffer(self.buffer[:self.target_size], dtype=np.int16)
@@ -160,7 +150,20 @@ class Transcription_Manager:
 
             self.process_audio(audio, prompt)
             self.continuing_prompt = True
-            return
+
+        
+
+        if (frame < self.target_size and 
+            frame >= self.data_minimum and 
+            (cur_time-self.last_packet_time) > self.silence_threshold):
+
+            
+            audio = np.frombuffer(self.buffer[:frame], dtype=np.int16)
+            self.buffer = self.buffer[frame:]
+
+            self.process_audio(audio)
+            self.continuing_prompt = False
+        
 
 
 
