@@ -1,4 +1,7 @@
-This project is aimed at designing a speech to text pipeline which uses discord bots as the audio source.
+# Speech-to-Text Pipeline Using Discord Bots
 
-The program recieves packets from the discord voice call the bot is connected through a websocket.
-It then transcribes this audio data in realtime.
+## Description
+
+This project focuses on creating a **speech-to-text pipeline** that utilizes Discord bots as the primary audio source. The bot connects to a Discord voice channel, captures audio packets, and processes them in real-time for transcription.
+
+By leveraging WebSocket communication, the program efficiently receives audio data from Discord, converting it into text dynamically. The system is designed to deliver accurate and fast transcription while operating seamlessly within the Discord ecosystem.
